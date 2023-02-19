@@ -1,0 +1,86 @@
+managed; //implementation in class zbp_2460_i_travel_jcor unique;
+//strict;
+
+define behavior for Z2460_I_TRAVEL_JCOR alias Travel
+implementation in class zbp_2460_i_travel_jcor unique
+persistent table z2460_trave_jcor
+lock master
+authorization master ( instance )
+etag master LastChangedAt
+{
+  create;
+  update;
+  delete;
+
+  field ( readonly ) LastChangedAt, LastChangedBy, CreatedAt, CreatedBy;
+
+  field ( mandatory ) AgencyId, OverallStatus, BookingFee, CurrencyCode;
+
+  field(features : instance) TravelId;
+
+  //field(numbering : managed) TravelId;
+
+  validation validateCustomer on save {field CustomerId;}
+  validation validateDate on save {field BeginDate,EndDate;}
+  validation validateStatus on save {field OverallStatus;}
+
+  action(features : instance) acceptTravel result[1] $self;
+  action(features : instance) rejectTravel result[1] $self;
+  action createTravelByTemplate external 'CreateTravelWithCopy' result[1] $self;
+
+
+  association _Booking { create; }
+
+  //mapping for Z2460_TRAVE_JCOR corresponding;
+
+  mapping for Z2460_TRAVE_JCOR
+  {
+    TravelId=travel_id;
+
+  }
+
+}
+
+define behavior for Z2460_I_BOOKING_JCOR alias Booking
+implementation in class zbp_2460_i_booking_jcor unique
+persistent table Z2460_BOO_JCOR
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master LastChangedAt
+{
+  update;
+  delete;
+  field ( readonly ) TravelId, LastChangedAt;
+
+  field(mandatory) CarrierId, ConnectionId, FlightDate, BookingStatus;
+  association _Travel;
+  association _BookingSupplement { create; }
+
+  validation validateStatus on save {field BookingStatus;}
+
+  determination calculateTotalFlightPrice on modify {field FlightPrice, CurrencyCode;}
+
+	
+}
+
+
+
+define behavior for Z2460_I_BOOKSUP_JCOR alias Supplement
+implementation in class zbp_2460_i_suppl_jcor unique
+//persistent table z2460_sbo_jcor
+with unmanaged save
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master LastChangedAt
+{
+  update;
+  delete;
+
+  field ( readonly ) TravelId, BookingId;
+  field(mandatory) SupplementId, Price;
+
+  association _Travel;
+  association _Booking;
+
+  determination calculateTotalFlightPrice on modify {field Price, CurrencyCode;}
+}
